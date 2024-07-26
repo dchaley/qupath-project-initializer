@@ -105,7 +105,7 @@ project.syncChanges()
 File directoryOfMasks = new File(masksDir)
 if (directoryOfMasks.exists()) {
     println("Discovering Mask Files...")
-    File[] wholecellfiles = []
+    List<File> wholecellfiles = []
     directoryOfMasks.eachFileRecurse(FileType.FILES) { file ->
         if (file.getName().endsWith("_WholeCellMask.tiff")) {
             wholecellfiles << file
@@ -113,7 +113,7 @@ if (directoryOfMasks.exists()) {
     }
 
     for (entry in project.getImageList()) {
-        imgName = entry.getImageName()
+        def imgName = entry.getImageName()
         String sample = imgName[imgName.lastIndexOf(':') + 1..-1].tokenize(".")[0]
         println(" >>> " + sample)
         def imageData = entry.readImageData()
@@ -151,7 +151,7 @@ if (directoryOfMasks.exists()) {
             return PathObjects.createDetectionObject(it)
         }
         println("   Number of PathObjects: " + pathObjects.size())
-        imageData.getHierarchy().addPathObjects(pathObjects)
+        imageData.getHierarchy().addObjects(pathObjects)
         resolveHierarchy()
         entry.saveImageData(imageData)
 
