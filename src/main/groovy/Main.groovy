@@ -57,7 +57,7 @@ def files = []
 selectedDir = new File(omeDir)
 selectedDir.eachFileRecurse(FileType.FILES) { file ->
     if (file.getName().toLowerCase().endsWith(".ome.tiff")) {
-        if (regionSet != null && file.getName().contains(regionSet)) {
+        if (regionSet == null || file.getName().contains(regionSet)) {
             files << file
         }
     }
