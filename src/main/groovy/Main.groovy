@@ -5,8 +5,8 @@ import qupath.imagej.processing.RoiLabeling
 import qupath.imagej.tools.IJTools
 import qupath.lib.analysis.features.ObjectMeasurements
 import qupath.lib.gui.commands.ProjectCommands
-import qupath.lib.images.servers.ImageServerProvider
 import qupath.lib.images.ImageData
+import qupath.lib.images.servers.ImageServerProvider
 import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
@@ -14,14 +14,14 @@ import qupath.lib.scripting.QP
 
 import java.awt.image.BufferedImage
 
+import static qupath.lib.scripting.QP.fireHierarchyUpdate
+import static qupath.lib.scripting.QP.resolveHierarchy
+
 // This forces various things to initialize e.g. registering type handlers.
 //noinspection GroovyUnusedAssignment
 _ = new QP()
 
 // Remove this if you don't need to generate new cell intensity measurements (it may be quite slow)
-
-import static qupath.lib.scripting.QP.fireHierarchyUpdate
-import static qupath.lib.scripting.QP.resolveHierarchy
 
 // ome.tiff files must contain this word in their name to be included
 regionSet = null
