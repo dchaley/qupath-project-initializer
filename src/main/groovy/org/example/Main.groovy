@@ -8,7 +8,9 @@ import qupath.imagej.tools.IJTools
 import qupath.lib.analysis.features.ObjectMeasurements
 import qupath.lib.gui.commands.ProjectCommands
 import qupath.lib.images.servers.ImageServerProvider
+import qupath.lib.images.ImageData
 import qupath.lib.objects.PathObjects
+import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
 
 import java.awt.image.BufferedImage
@@ -62,7 +64,7 @@ println('---')
 
 // Add files to the project
 for (file in files) {
-    def imagePath = file.getCanonicalPath()
+    String imagePath = file.getCanonicalPath()
     println(imagePath)
 
     // Get serverBuilder
@@ -100,7 +102,7 @@ project.syncChanges()
 File directoryOfMasks = new File(masksDir)
 if (directoryOfMasks.exists()) {
     println("Discovering Mask Files...")
-    def wholecellfiles = []
+    File[] wholecellfiles = []
     directoryOfMasks.eachFileRecurse(FileType.FILES) { file ->
         if (file.getName().endsWith("_WholeCellMask.tiff")) {
             wholecellfiles << file
@@ -137,7 +139,7 @@ if (directoryOfMasks.exists()) {
         def roisIJ = RoiLabeling.labelsToConnectedROIs(ip, n)
         def rois = roisIJ.collect {
             if (it == null)
-                return
+                return null
             return IJTools.convertToROI(it, 0, 0, downsample, plane);
         }
         rois = rois.findAll { null != it }
