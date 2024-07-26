@@ -10,8 +10,13 @@ import qupath.lib.images.ImageData
 import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
+import qupath.lib.scripting.QP
 
 import java.awt.image.BufferedImage
+
+// This forces various things to initialize e.g. registering type handlers.
+//noinspection GroovyUnusedAssignment
+_ = new QP()
 
 // Remove this if you don't need to generate new cell intensity measurements (it may be quite slow)
 
