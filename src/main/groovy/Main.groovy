@@ -1,5 +1,3 @@
-package org.example
-
 import groovy.io.FileType
 import ij.IJ
 import ij.process.ColorProcessor
