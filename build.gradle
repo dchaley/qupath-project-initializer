@@ -1,6 +1,7 @@
 plugins {
     id 'groovy'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 group = 'org.example'
@@ -29,13 +30,16 @@ dependencies {
     implementation group: 'org.slf4j', name: 'slf4j-simple', version: '2.0.13'
 
     // https://mvnrepository.com/artifact/io.github.qupath/qupath-core
-    implementation group: 'io.github.qupath', name: 'qupath-core', version: '0.5.0'
-    implementation group: 'io.github.qupath', name: 'qupath-core-processing', version: '0.5.0'
-    implementation group: 'io.github.qupath', name: 'qupath-gui-fx', version: '0.5.0'
-    implementation group: 'io.github.qupath', name: 'qupath-extension-bioformats', version: '0.5.0'
+    implementation group: 'io.github.qupath', name: 'qupath-core', version: '0.5.1'
+    implementation group: 'io.github.qupath', name: 'qupath-core-processing', version: '0.5.1'
+    implementation group: 'io.github.qupath', name: 'qupath-gui-fx', version: '0.5.1'
 
-    // https://mvnrepository.com/artifact/ome/turbojpeg
-    implementation group: 'ome', name: 'turbojpeg', version: '7.3.1'
+    // We need to force 7.3.1 of formats to work on mac:
+    // There's  regression in 7.0.1 and possibly in between.
+    implementation group: 'ome', name: 'formats-gpl', version: '7.3.1'
+
+    implementation group: 'io.github.qupath', name: 'qupath-extension-bioformats', version: '0.5.1'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
 test {
