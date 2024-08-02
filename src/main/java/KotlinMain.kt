@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
   val selectedDir = File(omeDir)
   selectedDir.walk().forEach {
 
-    if (it.isFile && it.name.lowercase().endsWith("ome.tiff")) {
+    if (it.isFile && it.name.lowercase().endsWith("tiff")) {
       if (regionSet == null || it.name.contains(regionSet)) {
         files.add(it)
       }
