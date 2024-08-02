@@ -9,12 +9,12 @@ import qupath.lib.images.servers.ImageServerProvider
 import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
-import java.awt.image.BufferedImage
-import java.io.File
-
 import qupath.lib.scripting.QP
 import qupath.lib.scripting.QP.fireHierarchyUpdate
 import qupath.lib.scripting.QP.resolveHierarchy
+import java.awt.image.BufferedImage
+import java.io.File
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 fun main(args: Array<String>) {
@@ -24,9 +24,9 @@ fun main(args: Array<String>) {
   // We need the import so that various static initializers are run.
   QP()
 
-  val regionSet : String? = null
+  val regionSet: String? = null
 
-  val workflowDir = "/Users/davidhaley/tmp/qupath-project"
+  val workflowDir = "/Users/davidhaley/tmp/qupath-mesmer"
   val omeDir = "$workflowDir/OMETIFF"
   val maskDir = "$workflowDir/SEGMASKS"
   val prjtDir = "$workflowDir/QUPATH"
@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
   val selectedDir = File(omeDir)
   selectedDir.walk().forEach {
 
-    if (it.isFile && it.name.lowercase().endsWith("ome.tiff")) {
+    if (it.isFile && it.name.lowercase().endsWith("tiff")) {
       if (regionSet == null || it.name.contains(regionSet)) {
         files.add(it)
       }
@@ -103,7 +103,7 @@ fun main(args: Array<String>) {
       val imageData = entry.readImageData()
       val server = imageData.server
 
-      val wholeCellMask1 = wholeCellFiles.find { it.name.contains(sample) }
+      val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
       if (wholeCellMask1 == null) {
         println(" >>> MISSING MASK FILES!! <<<")
         println()
@@ -147,11 +147,13 @@ fun main(args: Array<String>) {
       val measurements = ObjectMeasurements.Measurements.entries
       println(measurements)
       for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
-        if (processed % (numDetectionObjects / 50) == 0){
+        // Use 1 at minimum to avoid division by zero when num objects < 50
+        if (processed % max((numDetectionObjects / 50), 1) == 0) {
           println("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
         }
-        // ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
-        ObjectMeasurements.addShapeMeasurements(detection, server.pixelCalibration,
+        ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
+        ObjectMeasurements.addShapeMeasurements(
+          detection, server.pixelCalibration,
           *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
         )
       }
