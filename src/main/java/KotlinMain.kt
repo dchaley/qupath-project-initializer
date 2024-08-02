@@ -103,7 +103,7 @@ fun main(args: Array<String>) {
       val imageData = entry.readImageData()
       val server = imageData.server
 
-      val wholeCellMask1 = wholeCellFiles.find { it.name.contains(sample) }
+      val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
       if (wholeCellMask1 == null) {
         println(" >>> MISSING MASK FILES!! <<<")
         println()
