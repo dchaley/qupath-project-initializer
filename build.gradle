@@ -22,6 +22,14 @@ java {
     }
 }
 
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'KotlinMainKt'
+        )
+    }
+}
+
 dependencies {
     implementation 'org.apache.groovy:groovy:4.0.14'
     testImplementation platform('org.junit:junit-bom:5.10.0')
