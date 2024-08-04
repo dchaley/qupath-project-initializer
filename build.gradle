@@ -1,5 +1,4 @@
 plugins {
-    id 'groovy'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'org.jetbrains.kotlin.jvm'
     id 'application'
@@ -28,7 +27,6 @@ application {
 }
 
 dependencies {
-    implementation 'org.apache.groovy:groovy:4.0.14'
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 
