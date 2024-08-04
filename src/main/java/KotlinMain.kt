@@ -42,6 +42,10 @@ fun main(args: Array<String>) {
   val prjtDir = "$workflowDir/QUPATH"
   val outputPath = "$workflowDir/REPORTS/AllQuPathQuantification.tsv"
 
+  run(omeDir, maskDir, prjtDir, outputPath)
+}
+
+fun run(omeDir: String, maskDir: String, prjtDir: String, outputPath: String) {
   val downsample = 1.0
   val plane = ImagePlane.getDefaultPlane()
 
