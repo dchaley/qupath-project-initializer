@@ -1,4 +1,8 @@
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.groups.groupChoice
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import ij.IJ
@@ -30,6 +34,33 @@ fun getFiles(dir: File, extension: String, filter: String = ""): List<File> {
   return files
 }
 
+sealed class InvocationStyle(name: String) : OptionGroup(name) {
+  abstract val imagesPath: String
+  abstract val segMasksPath: String
+  abstract val projectPath: String
+}
+
+class WorkspaceLocation : InvocationStyle("workspace") {
+  private val workspacePath: String by option("--workspace-path", help = "Root directory of the workspace").required()
+  private val imagesSubdir: String by option("--images-subdir", help = "Name of the folder containing OME-TIFF images").default("OMETIFF")
+  private val segMasksSubdir: String by option("--segmasks-subdir", help = "Name of the folder containing segmentation masks").default("SEGMASKS")
+  private val projectSubdir: String by option("--project-subdir", help = "Name of the folder to save QuPath project").default("QUPATH")
+
+  override val imagesPath: String
+    get() = "$workspacePath/$imagesSubdir"
+  override val segMasksPath: String
+    get() = "$workspacePath/$segMasksSubdir"
+  override val projectPath: String
+    get() = "$workspacePath/$projectSubdir"
+}
+
+class ExplicitLocations : InvocationStyle("explicit") {
+  override val imagesPath: String by option("--images-path", help = "Directory containing OME-TIFF images").required()
+  override val segMasksPath: String by option("--segmasks-path", help = "Directory containing segmentation masks").required()
+  override val projectPath: String by option("--project-path", help = "Directory to save QuPath project").required()
+  val outputPath: String? by option(help = "Output path for QuPath measurements")
+}
+
 fun main(args: Array<String>) {
   println("Initializing QuPath project")
 
@@ -38,23 +69,20 @@ fun main(args: Array<String>) {
   QP()
 
   val regionSet: String? = null
-
-  val workflowDir = "/Users/davidhaley/tmp/qupath-mesmer"
-  val omeDir = "$workflowDir/OMETIFF"
-  val maskDir = "$workflowDir/SEGMASKS"
-  val prjtDir = "$workflowDir/QUPATH"
-  val outputPath = "$workflowDir/REPORTS/AllQuPathQuantification.tsv"
-
-  InitializeProject().main(listOf("--ome-dir", omeDir, "--mask-dir", maskDir, "--prjt-dir", prjtDir, "--output-path", outputPath))
+  InitializeProject().main(args)
 }
 
 class InitializeProject : CliktCommand() {
-  val omeDir: String by option(help = "Directory containing OME-TIFF images").required()
-  val maskDir: String by option(help = "Directory containing segmentation masks").required()
-  val prjtDir: String by option(help = "Directory to save QuPath project").required()
-  val outputPath: String by option(help = "Output path for QuPath measurements").required()
+  private val invocationStyle by option("--mode").groupChoice(
+    "workspace" to WorkspaceLocation(),
+    "explicit" to ExplicitLocations()
+  ).required()
 
   override fun run() {
+    val omeDir = invocationStyle.imagesPath
+    val maskDir = invocationStyle.segMasksPath
+    val prjtDir = invocationStyle.projectPath
+
     val downsample = 1.0
     val plane = ImagePlane.getDefaultPlane()
 
