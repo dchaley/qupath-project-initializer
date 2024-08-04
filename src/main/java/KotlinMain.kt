@@ -17,6 +17,16 @@ import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+fun getFiles(dir: File, extension: String, filter: String = ""): List<File> {
+  val files = mutableListOf<File>()
+  dir.walk().forEach {
+    if (it.isFile && it.name.lowercase().contains(filter) && it.name.lowercase().endsWith(extension)) {
+      files.add(it)
+    }
+  }
+  return files
+}
+
 fun main(args: Array<String>) {
   println("Initializing QuPath project")
 
@@ -43,16 +53,7 @@ fun main(args: Array<String>) {
 
   val project = Projects.createProject(directory, BufferedImage::class.java)
 
-  val files = mutableListOf<File>()
-  val selectedDir = File(omeDir)
-  selectedDir.walk().forEach {
-
-    if (it.isFile && it.name.lowercase().endsWith("tiff")) {
-      if (regionSet == null || it.name.contains(regionSet)) {
-        files.add(it)
-      }
-    }
-  }
+  val files = getFiles(File(omeDir), extension=".tiff")
 
   println("---")
 
