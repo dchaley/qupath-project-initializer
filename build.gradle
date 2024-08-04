@@ -2,6 +2,7 @@ plugins {
     id 'groovy'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'org.jetbrains.kotlin.jvm'
+    id 'application'
 }
 
 group = 'org.example'
@@ -22,12 +23,8 @@ java {
     }
 }
 
-jar {
-    manifest {
-        attributes(
-                'Main-Class': 'KotlinMainKt'
-        )
-    }
+application {
+    mainClassName = 'KotlinMainKt'
 }
 
 dependencies {
