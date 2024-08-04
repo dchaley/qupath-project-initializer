@@ -27,6 +27,8 @@ application {
 }
 
 dependencies {
+    implementation("com.github.ajalt.clikt:clikt:4.4.0")
+
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 
