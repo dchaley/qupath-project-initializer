@@ -153,10 +153,17 @@ class InitializeProject : CliktCommand() {
         val numDetectionObjects = imageData.hierarchy.detectionObjects.size
         println("  DetectionObjects: $numDetectionObjects")
         val measurements = ObjectMeasurements.Measurements.entries
-        println(measurements)
+        println("Computing intensity measurements: ${measurements}")
+
+        val updateAfterCount = when {
+          numDetectionObjects == 1 -> 1
+          numDetectionObjects < 500 -> numDetectionObjects / 5
+          numDetectionObjects < 50000 -> numDetectionObjects / 50
+          else -> numDetectionObjects / 100
+        }
+
         for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
-          // Use 1 at minimum to avoid division by zero when num objects < 50
-          if (processed % max((numDetectionObjects / 50), 1) == 0) {
+          if (processed % updateAfterCount == 0) {
             println("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
           }
           ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
@@ -165,6 +172,7 @@ class InitializeProject : CliktCommand() {
             *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
           )
         }
+        println("100% complete: ${imgName}")
         fireHierarchyUpdate()
         entry.saveImageData(imageData)
         imageData.server.close()
