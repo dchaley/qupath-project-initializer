@@ -23,7 +23,7 @@ java {
 }
 
 application {
-    mainClassName = 'KotlinMainKt'
+    mainClass.set('KotlinMainKt')
 }
 
 dependencies {
