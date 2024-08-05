@@ -1,3 +1,7 @@
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.groups.groupChoice
+import com.github.ajalt.clikt.parameters.groups.required
+import com.github.ajalt.clikt.parameters.options.option
 import ij.IJ
 import ij.process.ColorProcessor
 import qupath.imagej.processing.RoiLabeling
@@ -17,6 +21,15 @@ import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+fun getFiles(dir: File, extension: String, filter: String?): List<File> {
+  val files = mutableListOf<File>()
+  dir.walk().forEach {
+    if (it.isFile && it.name.lowercase().contains(filter.orEmpty()) && it.name.lowercase().endsWith(extension)) {
+      files.add(it)
+    }
+  }
+  return files
+}
 fun main(args: Array<String>) {
   println("Initializing QuPath project")
 
@@ -24,146 +37,150 @@ fun main(args: Array<String>) {
   // We need the import so that various static initializers are run.
   QP()
 
-  val regionSet: String? = null
+  InitializeProject().main(args)
+}
 
-  val workflowDir = "/Users/davidhaley/tmp/qupath-mesmer"
-  val omeDir = "$workflowDir/OMETIFF"
-  val maskDir = "$workflowDir/SEGMASKS"
-  val prjtDir = "$workflowDir/QUPATH"
-  val outputPath = "$workflowDir/REPORTS/AllQuPathQuantification.tsv"
+class InitializeProject : CliktCommand() {
+  private val args: Invocation by option("--mode").groupChoice(
+    "workspace" to WorkspaceLocation(),
+    "explicit" to ExplicitLocations()
+  ).required()
 
-  val downsample = 1.0
-  val plane = ImagePlane.getDefaultPlane()
+  private val imageFilter: String? by option("--image-filter", help = "Filter for image files")
 
-  val directory = File(prjtDir)
-  if (!directory.exists()) {
-    println("No project directory, creating one!")
-    directory.mkdirs()
-  }
+  override fun run() {
+    val downsample = 1.0
+    val plane = ImagePlane.getDefaultPlane()
 
-  val project = Projects.createProject(directory, BufferedImage::class.java)
+    val directory = File(args.projectPath)
+    if (!directory.exists()) {
+      println("No project directory, creating one!")
+      directory.mkdirs()
+    }
 
-  val files = mutableListOf<File>()
-  val selectedDir = File(omeDir)
-  selectedDir.walk().forEach {
+    val project = Projects.createProject(directory, BufferedImage::class.java)
 
-    if (it.isFile && it.name.lowercase().endsWith("tiff")) {
-      if (regionSet == null || it.name.contains(regionSet)) {
-        files.add(it)
+    val files = getFiles(File(args.imagesPath), filter = imageFilter, extension = ".tiff")
+
+    println("---")
+
+    for (file in files) {
+      val imagePath = file.getCanonicalPath()
+      println(imagePath)
+
+      val support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage::class.java, imagePath)
+      val builder = support.builders[0]
+
+      if (builder == null) {
+        println("No builder found for $imagePath")
+        continue
       }
-    }
-  }
 
-  println("---")
+      println("Adding: $imagePath")
 
-  for (file in files) {
-    val imagePath = file.getCanonicalPath()
-    println(imagePath)
+      val entry = project.addImage(builder)
 
-    val support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage::class.java, imagePath)
-    val builder = support.builders[0]
-
-    if (builder == null) {
-      println("No builder found for $imagePath")
-      continue
-    }
-
-    println("Adding: $imagePath")
-
-    val entry = project.addImage(builder)
-
-    val imageData = entry.readImageData()
-    imageData.imageType = ImageData.ImageType.FLUORESCENCE
-    entry.saveImageData(imageData)
-
-    val img = ProjectCommands.getThumbnailRGB(imageData.server)
-    entry.thumbnail = img
-
-    entry.imageName = file.name
-  }
-
-  project.syncChanges()
-
-  val directoryOfMasks = File(maskDir)
-  if (directoryOfMasks.exists()) {
-    println("Discovering mask files...")
-    val wholeCellFiles = mutableListOf<File>()
-
-    directoryOfMasks.walk().forEach {
-      if (it.isFile && it.name.endsWith("_WholeCellMask.tiff")) {
-        wholeCellFiles.add(it)
-      }
-    }
-
-    project.imageList.forEach() { entry ->
-      val imgName = entry.imageName
-
-      val sample = imgName.substringAfterLast(":").substringBefore(".")
-      println(" >>> $sample")
       val imageData = entry.readImageData()
-      val server = imageData.server
-
-      val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
-      if (wholeCellMask1 == null) {
-        println(" >>> MISSING MASK FILES!! <<<")
-        println()
-        return@forEach
-      }
-
-      val imp = IJ.openImage(wholeCellMask1.absolutePath)
-      print(imp)
-      val n = imp.statistics.max.toInt()
-      println("   Max Cell Label: $n")
-      if (n == 0) {
-        println(" >>> No objects found! <<<")
-        return
-      }
-
-      val ip = imp.processor
-      if (ip is ColorProcessor) {
-        throw IllegalArgumentException("RGB images are not supported!")
-      }
-
-      val roisIJ = RoiLabeling.labelsToConnectedROIs(ip, n)
-      val rois = roisIJ.mapNotNull {
-        if (it == null) {
-          null
-        } else {
-          IJTools.convertToROI(it, 0.0, 0.0, downsample, plane)
-        }
-      }
-
-      val pathObjects = rois.map { PathObjects.createDetectionObject(it) }
-
-      println("  Number of Pathobjects: ${pathObjects.size}")
-      imageData.hierarchy.addObjects(pathObjects)
-      resolveHierarchy()
+      imageData.imageType = ImageData.ImageType.FLUORESCENCE
       entry.saveImageData(imageData)
 
-      println(" >>> Calculating measurements...")
-      println(imageData.hierarchy)
-      val numDetectionObjects = imageData.hierarchy.detectionObjects.size
-      println("  DetectionObjects: $numDetectionObjects")
-      val measurements = ObjectMeasurements.Measurements.entries
-      println(measurements)
-      for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
-        // Use 1 at minimum to avoid division by zero when num objects < 50
-        if (processed % max((numDetectionObjects / 50), 1) == 0) {
-          println("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
-        }
-        ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
-        ObjectMeasurements.addShapeMeasurements(
-          detection, server.pixelCalibration,
-          *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
-        )
-      }
-      fireHierarchyUpdate()
-      entry.saveImageData(imageData)
-      imageData.server.close()
+      val img = ProjectCommands.getThumbnailRGB(imageData.server)
+      entry.thumbnail = img
+
+      entry.imageName = file.name
     }
-  }
 
-  project.syncChanges()
-  println("")
-  println("Done.")
+    project.syncChanges()
+
+    val directoryOfMasks = File(args.segMasksPath)
+    if (directoryOfMasks.exists()) {
+      println("Discovering mask files...")
+      val wholeCellFiles = mutableListOf<File>()
+
+      directoryOfMasks.walk().forEach {
+        if (it.isFile && it.name.endsWith("_WholeCellMask.tiff")) {
+          wholeCellFiles.add(it)
+        }
+      }
+
+      project.imageList.forEach() { entry ->
+        val imgName = entry.imageName
+
+        val sample = imgName.substringAfterLast(":").substringBefore(".")
+        println(" >>> $sample")
+        val imageData = entry.readImageData()
+        val server = imageData.server
+
+        val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
+        if (wholeCellMask1 == null) {
+          println(" >>> MISSING MASK FILES!! <<<")
+          println()
+          return@forEach
+        }
+
+        val imp = IJ.openImage(wholeCellMask1.absolutePath)
+        print(imp)
+        val n = imp.statistics.max.toInt()
+        println("   Max Cell Label: $n")
+        if (n == 0) {
+          println(" >>> No objects found! <<<")
+          return
+        }
+
+        val ip = imp.processor
+        if (ip is ColorProcessor) {
+          throw IllegalArgumentException("RGB images are not supported!")
+        }
+
+        val roisIJ = RoiLabeling.labelsToConnectedROIs(ip, n)
+        val rois = roisIJ.mapNotNull {
+          if (it == null) {
+            null
+          } else {
+            IJTools.convertToROI(it, 0.0, 0.0, downsample, plane)
+          }
+        }
+
+        val pathObjects = rois.map { PathObjects.createDetectionObject(it) }
+
+        println("  Number of Pathobjects: ${pathObjects.size}")
+        imageData.hierarchy.addObjects(pathObjects)
+        resolveHierarchy()
+        entry.saveImageData(imageData)
+
+        println(" >>> Calculating measurements...")
+        println(imageData.hierarchy)
+        val numDetectionObjects = imageData.hierarchy.detectionObjects.size
+        println("  DetectionObjects: $numDetectionObjects")
+        val measurements = ObjectMeasurements.Measurements.entries
+        println("Computing intensity measurements: ${measurements}")
+
+        val updateAfterCount = when {
+          numDetectionObjects == 1 -> 1
+          numDetectionObjects < 500 -> numDetectionObjects / 5
+          numDetectionObjects < 50000 -> numDetectionObjects / 50
+          else -> numDetectionObjects / 100
+        }
+
+        for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
+          if (processed % updateAfterCount == 0) {
+            println("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
+          }
+          ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
+          ObjectMeasurements.addShapeMeasurements(
+            detection, server.pixelCalibration,
+            *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
+          )
+        }
+        println("100% complete: ${imgName}")
+        fireHierarchyUpdate()
+        entry.saveImageData(imageData)
+        imageData.server.close()
+      }
+    }
+
+    project.syncChanges()
+    println("")
+    println("Done.")
+  }
 }
