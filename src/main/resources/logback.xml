@@ -1,0 +1,28 @@
+<configuration>
+
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>
+                %d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
+            </Pattern>
+        </layout>
+    </appender>
+
+    <logger name="qupath.lib.images.servers.bioformats" level="error"/>
+    <logger name="qupath.lib.io" level="warn"/>
+    <logger name="qupath.lib.gui" level="warn"/>
+    <logger name="qupath.lib.scripting" level="warn"/>
+    <logger name="loci.formats" level="warn"/>
+
+    <!--        <logger name="com.mkyong" level="debug" additivity="false">-->
+    <!--            <appender-ref ref="CONSOLE"/>-->
+    <!--        </logger>-->
+
+    <root level="info">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
