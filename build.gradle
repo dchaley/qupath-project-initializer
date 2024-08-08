@@ -32,8 +32,6 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 
-    implementation group: 'org.slf4j', name: 'slf4j-simple', version: '2.0.13'
-
     // https://mvnrepository.com/artifact/io.github.qupath/qupath-core
     implementation group: 'io.github.qupath', name: 'qupath-core', version: '0.5.1'
     implementation group: 'io.github.qupath', name: 'qupath-core-processing', version: '0.5.1'

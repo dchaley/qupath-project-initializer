@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.options.option
 import ij.IJ
 import ij.process.ColorProcessor
+import org.slf4j.LoggerFactory
 import qupath.imagej.processing.RoiLabeling
 import qupath.imagej.tools.IJTools
 import qupath.lib.analysis.features.ObjectMeasurements
@@ -21,7 +22,7 @@ import java.io.File
 import kotlin.math.roundToInt
 
 fun main(args: Array<String>) {
-  println("Initializing QuPath project")
+  LoggerFactory.getLogger(InitializeProject::class.java).info("Initializing QuPath project")
 
   // This makes sure the scripting.QP import doesn't get "optimized" away
   // We need the import so that various static initializers are run.
@@ -38,13 +39,15 @@ class InitializeProject : CliktCommand() {
 
   private val imageFilter: String? by option("--image-filter", help = "Filter for image names (file base name)")
 
+  private val logger = LoggerFactory.getLogger(InitializeProject::class.java)
+
   override fun run() {
     val downsample = 1.0
     val plane = ImagePlane.getDefaultPlane()
 
     val directory = File(args.projectPath)
     if (!directory.exists()) {
-      println("No project directory, creating one!")
+      logger.info("No project directory, creating one!")
       directory.mkdirs()
     }
 
@@ -54,23 +57,21 @@ class InitializeProject : CliktCommand() {
 
     inputImages = fetchRemoteImages(inputImages)
 
-    println("Detected ${inputImages.size} input images: $inputImages")
-
-    println("---")
+    logger.info("Detected ${inputImages.size} input images: $inputImages")
 
     inputImages.mapNotNull { input -> input.localPath?.let { File(it) } }.forEach { file ->
       val imagePath = file.getCanonicalPath()
-      println(imagePath)
+      logger.debug("Considering: $imagePath")
 
       val support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage::class.java, imagePath)
       val builder = support.builders[0]
 
       if (builder == null) {
-        println("No builder found for $imagePath")
-        continue
+        logger.info("No builder found for $imagePath; skipping")
+        return@forEach
       }
 
-      println("Adding: $imagePath")
+      logger.info("Adding ${file.name} using builder: ${builder.javaClass.simpleName}")
 
       val entry = project.addImage(builder)
 
@@ -88,7 +89,7 @@ class InitializeProject : CliktCommand() {
 
     val directoryOfMasks = File(args.segMasksPath)
     if (directoryOfMasks.exists()) {
-      println("Discovering mask files...")
+      logger.info("Discovering mask files...")
       val wholeCellFiles = mutableListOf<File>()
 
       directoryOfMasks.walk().forEach {
@@ -101,23 +102,22 @@ class InitializeProject : CliktCommand() {
         val imgName = entry.imageName
 
         val sample = imgName.substringAfterLast(":").substringBefore(".")
-        println(" >>> $sample")
+        logger.info(" >>> $sample")
         val imageData = entry.readImageData()
         val server = imageData.server
 
         val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
         if (wholeCellMask1 == null) {
-          println(" >>> MISSING MASK FILES!! <<<")
-          println()
+          logger.warn(" >>> MISSING MASK FILES!! For: $sample <<<")
           return@forEach
         }
 
         val imp = IJ.openImage(wholeCellMask1.absolutePath)
-        print(imp)
+        logger.info(imp.toString())
         val n = imp.statistics.max.toInt()
-        println("   Max Cell Label: $n")
+        logger.info("   Max Cell Label: $n")
         if (n == 0) {
-          println(" >>> No objects found! <<<")
+          logger.info(" >>> No objects found! <<<")
           return
         }
 
@@ -137,17 +137,17 @@ class InitializeProject : CliktCommand() {
 
         val pathObjects = rois.map { PathObjects.createDetectionObject(it) }
 
-        println("  Number of Pathobjects: ${pathObjects.size}")
+        logger.info("  Number of Pathobjects: ${pathObjects.size}")
         imageData.hierarchy.addObjects(pathObjects)
         resolveHierarchy()
         entry.saveImageData(imageData)
 
-        println(" >>> Calculating measurements...")
-        println(imageData.hierarchy)
+        logger.info(" >>> Calculating measurements...")
+        logger.info(imageData.hierarchy.toString())
         val numDetectionObjects = imageData.hierarchy.detectionObjects.size
-        println("  DetectionObjects: $numDetectionObjects")
+        logger.info("  DetectionObjects: $numDetectionObjects")
         val measurements = ObjectMeasurements.Measurements.entries
-        println("Computing intensity measurements: ${measurements}")
+        logger.info("Computing intensity measurements: ${measurements}")
 
         val updateAfterCount = when {
           numDetectionObjects == 1 -> 1
@@ -158,7 +158,7 @@ class InitializeProject : CliktCommand() {
 
         for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
           if (processed % updateAfterCount == 0) {
-            println("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
+            logger.info("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
           }
           ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
           ObjectMeasurements.addShapeMeasurements(
@@ -166,7 +166,7 @@ class InitializeProject : CliktCommand() {
             *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
           )
         }
-        println("100% complete: ${imgName}")
+        logger.info("100% complete: ${imgName}")
         fireHierarchyUpdate()
         entry.saveImageData(imageData)
         imageData.server.close()
@@ -174,7 +174,6 @@ class InitializeProject : CliktCommand() {
     }
 
     project.syncChanges()
-    println("")
-    println("Done.")
+    logger.info("Done.")
   }
 }
