@@ -2,9 +2,6 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.groupChoice
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.options.option
-import com.google.cloud.storage.BlobId
-import com.google.cloud.storage.Storage
-import com.google.cloud.storage.StorageOptions
 import ij.IJ
 import ij.process.ColorProcessor
 import qupath.imagej.processing.RoiLabeling
@@ -21,44 +18,7 @@ import qupath.lib.scripting.QP.fireHierarchyUpdate
 import qupath.lib.scripting.QP.resolveHierarchy
 import java.awt.image.BufferedImage
 import java.io.File
-import java.net.URI
 import kotlin.math.roundToInt
-
-data class InputImage(val imageName: String, val uri: URI, val localPath: String? = null)
-
-fun listGsInputs(uri: String, filter: String?, extension: String): List<InputImage> {
-  val storage: Storage = StorageOptions.getDefaultInstance().getService()
-  val rootBlobId = BlobId.fromGsUtilUri(uri)
-
-  // Return all objects that:
-  // - aren't directories
-  // - contain the filter string
-  // - end with the specified extension
-  return storage.list(rootBlobId.bucket, Storage.BlobListOption.prefix(rootBlobId.name)).iterateAll()
-    .mapNotNull { blob ->
-      if (blob.name.endsWith("/")
-        || !blob.name.contains(filter.orEmpty(), ignoreCase = true)
-        || !blob.name.endsWith(extension, ignoreCase = true)
-      ) {
-        return@mapNotNull null
-      }
-
-      InputImage(blob.name, URI.create("gs://${blob.bucket}/${blob.name}"))
-    }
-}
-
-fun listFileInputs(dirPath: String, extension: String, filter: String?): List<InputImage> {
-  return File(dirPath).walk().mapNotNull {
-    if (!it.isFile
-      || !it.name.contains(filter.orEmpty(), ignoreCase = true)
-      || !it.name.endsWith(extension, ignoreCase = true)
-    ) {
-      return@mapNotNull null
-    }
-
-    InputImage(it.name, it.toURI(), it.canonicalPath)
-  }.toList()
-}
 
 fun main(args: Array<String>) {
   println("Initializing QuPath project")
@@ -90,15 +50,11 @@ class InitializeProject : CliktCommand() {
 
     val project = Projects.createProject(directory, BufferedImage::class.java)
 
-    val imageUri = URI.create(args.imagesPath)
+    var inputImages = getImageInputs(args.imagesPath, imageFilter = imageFilter, extension = ".tiff")
 
-    val inputImages = if (imageUri.scheme == "gs") {
-      listGsInputs(args.imagesPath, filter = imageFilter, extension = ".tiff")
-    } else {
-      listFileInputs(args.imagesPath, filter = imageFilter, extension = ".tiff")
-    }
+    inputImages = fetchRemoteImages(inputImages)
 
-    println("Detected ${inputImages.size} input images: ${inputImages}")
+    println("Detected ${inputImages.size} input images: $inputImages")
 
     println("---")
 
