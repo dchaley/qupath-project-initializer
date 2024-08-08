@@ -58,7 +58,7 @@ class InitializeProject : CliktCommand() {
 
     println("---")
 
-    for (file in inputImages.mapNotNull { if (it.localPath == null) null else File(it.localPath) }) {
+    inputImages.mapNotNull { input -> input.localPath?.let { File(it) } }.forEach { file ->
       val imagePath = file.getCanonicalPath()
       println(imagePath)
 

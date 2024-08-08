@@ -49,6 +49,8 @@ dependencies {
     implementation platform('com.google.cloud:libraries-bom:26.43.0')
     implementation 'com.google.cloud:google-cloud-storage'
 
+    implementation group: 'commons-io', name: 'commons-io', version: '2.16.1'
+
     // Kotlin stdlib
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
