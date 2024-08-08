@@ -10,10 +10,18 @@ sealed class Invocation(name: String) : OptionGroup(name) {
 }
 
 class WorkspaceLocation : Invocation("workspace") {
-  private val workspacePath: String by option("--workspace-path", help = "Root directory of the workspace").required()
-  private val imagesSubdir: String by option("--images-subdir", help = "Name of the folder containing OME-TIFF images").default("OMETIFF")
-  private val segMasksSubdir: String by option("--segmasks-subdir", help = "Name of the folder containing segmentation masks").default("SEGMASKS")
-  private val projectSubdir: String by option("--project-subdir", help = "Name of the folder to save QuPath project").default("QUPATH")
+  private val workspacePath: String by option(
+    "--workspace-path", help = "Root directory of the workspace",
+  ).required()
+  private val imagesSubdir: String by option(
+    "--images-subdir", help = "Name of the folder containing OME-TIFF images",
+  ).default("OMETIFF")
+  private val segMasksSubdir: String by option(
+    "--segmasks-subdir", help = "Name of the folder containing segmentation masks",
+  ).default("SEGMASKS")
+  private val projectSubdir: String by option(
+    "--project-subdir", help = "Name of the folder to save QuPath project",
+  ).default("QUPATH")
 
   override val imagesPath: String
     get() = "$workspacePath/$imagesSubdir"
@@ -24,9 +32,15 @@ class WorkspaceLocation : Invocation("workspace") {
 }
 
 class ExplicitLocations : Invocation("explicit") {
-  override val imagesPath: String by option("--images-path", help = "Directory containing OME-TIFF images").required()
-  override val segMasksPath: String by option("--segmasks-path", help = "Directory containing segmentation masks").required()
-  override val projectPath: String by option("--project-path", help = "Directory to save QuPath project").required()
+  override val imagesPath: String by option(
+    "--images-path", help = "Directory containing OME-TIFF images",
+  ).required()
+  override val segMasksPath: String by option(
+    "--segmasks-path", help = "Directory containing segmentation masks",
+  ).required()
+  override val projectPath: String by option(
+    "--project-path", help = "Directory to save QuPath project",
+  ).required()
   val outputPath: String? by option(help = "Output path for QuPath measurements")
 }
 

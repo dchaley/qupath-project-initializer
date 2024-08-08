@@ -18,7 +18,6 @@ import qupath.lib.scripting.QP.fireHierarchyUpdate
 import qupath.lib.scripting.QP.resolveHierarchy
 import java.awt.image.BufferedImage
 import java.io.File
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 fun getFiles(dir: File, extension: String, filter: String?): List<File> {
@@ -30,6 +29,7 @@ fun getFiles(dir: File, extension: String, filter: String?): List<File> {
   }
   return files
 }
+
 fun main(args: Array<String>) {
   println("Initializing QuPath project")
 
