@@ -2,6 +2,9 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.groupChoice
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.options.option
+import com.google.cloud.storage.BlobId
+import com.google.cloud.storage.Storage
+import com.google.cloud.storage.StorageOptions
 import ij.IJ
 import ij.process.ColorProcessor
 import qupath.imagej.processing.RoiLabeling
@@ -18,16 +21,43 @@ import qupath.lib.scripting.QP.fireHierarchyUpdate
 import qupath.lib.scripting.QP.resolveHierarchy
 import java.awt.image.BufferedImage
 import java.io.File
+import java.net.URI
 import kotlin.math.roundToInt
 
-fun getFiles(dir: File, extension: String, filter: String?): List<File> {
-  val files = mutableListOf<File>()
-  dir.walk().forEach {
-    if (it.isFile && it.name.lowercase().contains(filter.orEmpty()) && it.name.lowercase().endsWith(extension)) {
-      files.add(it)
+data class InputImage(val imageName: String, val uri: URI, val localPath: String? = null)
+
+fun listGsInputs(uri: String, filter: String?, extension: String): List<InputImage> {
+  val storage: Storage = StorageOptions.getDefaultInstance().getService()
+  val rootBlobId = BlobId.fromGsUtilUri(uri)
+
+  // Return all objects that:
+  // - aren't directories
+  // - contain the filter string
+  // - end with the specified extension
+  return storage.list(rootBlobId.bucket, Storage.BlobListOption.prefix(rootBlobId.name)).iterateAll()
+    .mapNotNull { blob ->
+      if (blob.name.endsWith("/")
+        || !blob.name.contains(filter.orEmpty(), ignoreCase = true)
+        || !blob.name.endsWith(extension, ignoreCase = true)
+      ) {
+        return@mapNotNull null
+      }
+
+      InputImage(blob.name, URI.create("gs://${blob.bucket}/${blob.name}"))
     }
-  }
-  return files
+}
+
+fun listFileInputs(dirPath: String, extension: String, filter: String?): List<InputImage> {
+  return File(dirPath).walk().mapNotNull {
+    if (!it.isFile
+      || !it.name.contains(filter.orEmpty(), ignoreCase = true)
+      || !it.name.endsWith(extension, ignoreCase = true)
+    ) {
+      return@mapNotNull null
+    }
+
+    InputImage(it.name, it.toURI(), it.canonicalPath)
+  }.toList()
 }
 
 fun main(args: Array<String>) {
@@ -46,7 +76,7 @@ class InitializeProject : CliktCommand() {
     "explicit" to ExplicitLocations()
   ).required()
 
-  private val imageFilter: String? by option("--image-filter", help = "Filter for image files")
+  private val imageFilter: String? by option("--image-filter", help = "Filter for image names (file base name)")
 
   override fun run() {
     val downsample = 1.0
@@ -60,11 +90,19 @@ class InitializeProject : CliktCommand() {
 
     val project = Projects.createProject(directory, BufferedImage::class.java)
 
-    val files = getFiles(File(args.imagesPath), filter = imageFilter, extension = ".tiff")
+    val imageUri = URI.create(args.imagesPath)
+
+    val inputImages = if (imageUri.scheme == "gs") {
+      listGsInputs(args.imagesPath, filter = imageFilter, extension = ".tiff")
+    } else {
+      listFileInputs(args.imagesPath, filter = imageFilter, extension = ".tiff")
+    }
+
+    println("Detected ${inputImages.size} input images: ${inputImages}")
 
     println("---")
 
-    for (file in files) {
+    for (file in inputImages.mapNotNull { if (it.localPath == null) null else File(it.localPath) }) {
       val imagePath = file.getCanonicalPath()
       println(imagePath)
 

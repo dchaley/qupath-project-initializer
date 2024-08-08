@@ -44,6 +44,12 @@ dependencies {
     implementation group: 'ome', name: 'formats-gpl', version: '7.3.1'
 
     implementation group: 'io.github.qupath', name: 'qupath-extension-bioformats', version: '0.5.1'
+
+    // Google Cloud APIs
+    implementation platform('com.google.cloud:libraries-bom:26.43.0')
+    implementation 'com.google.cloud:google-cloud-storage'
+
+    // Kotlin stdlib
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
