@@ -2,16 +2,8 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.groupChoice
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.options.option
-import ij.IJ
-import ij.process.ColorProcessor
 import org.slf4j.LoggerFactory
-import qupath.imagej.processing.RoiLabeling
-import qupath.imagej.tools.IJTools
 import qupath.lib.analysis.features.ObjectMeasurements
-import qupath.lib.gui.commands.ProjectCommands
-import qupath.lib.images.ImageData
-import qupath.lib.images.servers.ImageServerProvider
-import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
 import qupath.lib.scripting.QP
@@ -53,51 +45,24 @@ class InitializeProject : CliktCommand() {
 
     val project = Projects.createProject(directory, BufferedImage::class.java)
 
+    logger.info("Discovering input files...")
     var inputImages = getImageInputs(args.imagesPath, imageFilter = imageFilter, extension = ".tiff")
 
+    logger.info("Fetching remote image files...")
     inputImages = fetchRemoteImages(inputImages)
 
     logger.info("Detected ${inputImages.size} input images: $inputImages")
 
-    inputImages.mapNotNull { input -> input.localPath?.let { File(it) } }.forEach { file ->
-      val imagePath = file.getCanonicalPath()
-      logger.debug("Considering: $imagePath")
+    project.addImages(inputImages)
 
-      val support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage::class.java, imagePath)
-      val builder = support.builders[0]
+    logger.info("Discovering mask files...")
+    var wholeCellInputs = getImageInputs(args.segMasksPath, extension = "_WholeCellMask.tiff")
+    logger.info("Fetching remote mask files...")
+    wholeCellInputs = fetchRemoteImages(wholeCellInputs)
 
-      if (builder == null) {
-        logger.info("No builder found for $imagePath; skipping")
-        return@forEach
-      }
+    val wholeCellFiles = wholeCellInputs.mapNotNull { it.localPath }.map { File(it) }
 
-      logger.info("Adding ${file.name} using builder: ${builder.javaClass.simpleName}")
-
-      val entry = project.addImage(builder)
-
-      val imageData = entry.readImageData()
-      imageData.imageType = ImageData.ImageType.FLUORESCENCE
-      entry.saveImageData(imageData)
-
-      val img = ProjectCommands.getThumbnailRGB(imageData.server)
-      entry.thumbnail = img
-
-      entry.imageName = file.name
-    }
-
-    project.syncChanges()
-
-    val directoryOfMasks = File(args.segMasksPath)
-    if (directoryOfMasks.exists()) {
-      logger.info("Discovering mask files...")
-      val wholeCellFiles = mutableListOf<File>()
-
-      directoryOfMasks.walk().forEach {
-        if (it.isFile && it.name.endsWith("_WholeCellMask.tiff")) {
-          wholeCellFiles.add(it)
-        }
-      }
-
+    if (wholeCellFiles.isNotEmpty()) {
       project.imageList.forEach() { entry ->
         val imgName = entry.imageName
 
@@ -112,30 +77,7 @@ class InitializeProject : CliktCommand() {
           return@forEach
         }
 
-        val imp = IJ.openImage(wholeCellMask1.absolutePath)
-        logger.info(imp.toString())
-        val n = imp.statistics.max.toInt()
-        logger.info("   Max Cell Label: $n")
-        if (n == 0) {
-          logger.info(" >>> No objects found! <<<")
-          return
-        }
-
-        val ip = imp.processor
-        if (ip is ColorProcessor) {
-          throw IllegalArgumentException("RGB images are not supported!")
-        }
-
-        val roisIJ = RoiLabeling.labelsToConnectedROIs(ip, n)
-        val rois = roisIJ.mapNotNull {
-          if (it == null) {
-            null
-          } else {
-            IJTools.convertToROI(it, 0.0, 0.0, downsample, plane)
-          }
-        }
-
-        val pathObjects = rois.map { PathObjects.createDetectionObject(it) }
+        val pathObjects = extractPathObjects(wholeCellMask1.canonicalPath, downsample, plane)
 
         logger.info("  Number of Pathobjects: ${pathObjects.size}")
         imageData.hierarchy.addObjects(pathObjects)
