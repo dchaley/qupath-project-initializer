@@ -2,13 +2,8 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.groupChoice
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.options.option
-import ij.IJ
-import ij.process.ColorProcessor
 import org.slf4j.LoggerFactory
-import qupath.imagej.processing.RoiLabeling
-import qupath.imagej.tools.IJTools
 import qupath.lib.analysis.features.ObjectMeasurements
-import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
 import qupath.lib.scripting.QP
@@ -83,30 +78,7 @@ class InitializeProject : CliktCommand() {
           return@forEach
         }
 
-        val imp = IJ.openImage(wholeCellMask1.absolutePath)
-        logger.info(imp.toString())
-        val n = imp.statistics.max.toInt()
-        logger.info("   Max Cell Label: $n")
-        if (n == 0) {
-          logger.info(" >>> No objects found! <<<")
-          return
-        }
-
-        val ip = imp.processor
-        if (ip is ColorProcessor) {
-          throw IllegalArgumentException("RGB images are not supported!")
-        }
-
-        val roisIJ = RoiLabeling.labelsToConnectedROIs(ip, n)
-        val rois = roisIJ.mapNotNull {
-          if (it == null) {
-            null
-          } else {
-            IJTools.convertToROI(it, 0.0, 0.0, downsample, plane)
-          }
-        }
-
-        val pathObjects = rois.map { PathObjects.createDetectionObject(it) }
+        val pathObjects = extractPathObjects(wholeCellMask1.canonicalPath, downsample, plane)
 
         logger.info("  Number of Pathobjects: ${pathObjects.size}")
         imageData.hierarchy.addObjects(pathObjects)
