@@ -8,9 +8,6 @@ import org.slf4j.LoggerFactory
 import qupath.imagej.processing.RoiLabeling
 import qupath.imagej.tools.IJTools
 import qupath.lib.analysis.features.ObjectMeasurements
-import qupath.lib.gui.commands.ProjectCommands
-import qupath.lib.images.ImageData
-import qupath.lib.images.servers.ImageServerProvider
 import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
@@ -59,33 +56,7 @@ class InitializeProject : CliktCommand() {
 
     logger.info("Detected ${inputImages.size} input images: $inputImages")
 
-    inputImages.mapNotNull { input -> input.localPath?.let { File(it) } }.forEach { file ->
-      val imagePath = file.getCanonicalPath()
-      logger.debug("Considering: $imagePath")
-
-      val support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage::class.java, imagePath)
-      val builder = support.builders[0]
-
-      if (builder == null) {
-        logger.info("No builder found for $imagePath; skipping")
-        return@forEach
-      }
-
-      logger.info("Adding ${file.name} using builder: ${builder.javaClass.simpleName}")
-
-      val entry = project.addImage(builder)
-
-      val imageData = entry.readImageData()
-      imageData.imageType = ImageData.ImageType.FLUORESCENCE
-      entry.saveImageData(imageData)
-
-      val img = ProjectCommands.getThumbnailRGB(imageData.server)
-      entry.thumbnail = img
-
-      entry.imageName = file.name
-    }
-
-    project.syncChanges()
+    project.addImages(inputImages)
 
     val directoryOfMasks = File(args.segMasksPath)
     if (directoryOfMasks.exists()) {
