@@ -53,17 +53,19 @@ class InitializeProject : CliktCommand() {
 
     project.addImages(inputImages)
 
+    val wholeCellFiles = mutableListOf<File>()
     val directoryOfMasks = File(args.segMasksPath)
     if (directoryOfMasks.exists()) {
       logger.info("Discovering mask files...")
-      val wholeCellFiles = mutableListOf<File>()
 
       directoryOfMasks.walk().forEach {
         if (it.isFile && it.name.endsWith("_WholeCellMask.tiff")) {
           wholeCellFiles.add(it)
         }
       }
+    }
 
+    if (wholeCellFiles.isNotEmpty()) {
       project.imageList.forEach() { entry ->
         val imgName = entry.imageName
 
