@@ -45,25 +45,22 @@ class InitializeProject : CliktCommand() {
 
     val project = Projects.createProject(directory, BufferedImage::class.java)
 
+    logger.info("Discovering input files...")
     var inputImages = getImageInputs(args.imagesPath, imageFilter = imageFilter, extension = ".tiff")
 
+    logger.info("Fetching remote image files...")
     inputImages = fetchRemoteImages(inputImages)
 
     logger.info("Detected ${inputImages.size} input images: $inputImages")
 
     project.addImages(inputImages)
 
-    val wholeCellFiles = mutableListOf<File>()
-    val directoryOfMasks = File(args.segMasksPath)
-    if (directoryOfMasks.exists()) {
-      logger.info("Discovering mask files...")
+    logger.info("Discovering mask files...")
+    var wholeCellInputs = getImageInputs(args.segMasksPath, extension = "_WholeCellMask.tiff")
+    logger.info("Fetching remote mask files...")
+    wholeCellInputs = fetchRemoteImages(wholeCellInputs)
 
-      directoryOfMasks.walk().forEach {
-        if (it.isFile && it.name.endsWith("_WholeCellMask.tiff")) {
-          wholeCellFiles.add(it)
-        }
-      }
-    }
+    val wholeCellFiles = wholeCellInputs.mapNotNull { it.localPath }.map { File(it) }
 
     if (wholeCellFiles.isNotEmpty()) {
       project.imageList.forEach() { entry ->
