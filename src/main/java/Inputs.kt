@@ -12,7 +12,7 @@ import java.nio.file.Files
 import kotlin.io.path.Path
 
 
-data class InputImage(val imageName: String, val uri: URI, val localPath: String? = null)
+data class InputImage(val imageName: String, val uri: URI, val localPath: String?)
 
 fun listGsInputs(uri: String, filter: String?, extension: String): List<InputImage> {
   val storage: Storage = StorageOptions.getDefaultInstance().getService()
@@ -33,7 +33,7 @@ fun listGsInputs(uri: String, filter: String?, extension: String): List<InputIma
 
       // The blob name is the entire key including parent folders. Keep only the filename.
       val fileName = Path(blob.name).fileName.toString()
-      InputImage(fileName, URI.create("gs://${blob.bucket}/${blob.name}"))
+      InputImage(fileName, URI.create("gs://${blob.bucket}/${blob.name}"), localPath = null)
     }
 }
 
@@ -65,6 +65,10 @@ fun fetchRemoteImages(inputImages: List<InputImage>): List<InputImage> {
   val localRoot = Files.createTempDirectory("images").toFile()
   // Delete it on process exit.
   Runtime.getRuntime().addShutdownHook(Thread { FileUtils.forceDelete(localRoot) })
+
+  // Refactor? Divide into local + remote.
+  // Move remote fetching to subroutine.
+  // Return combination of both.
 
   // Collect all remote paths that need downloading
   val remoteBlobs = inputImages.filter { it.localPath == null }.map { BlobId.fromGsUtilUri(it.uri.toString()) }
