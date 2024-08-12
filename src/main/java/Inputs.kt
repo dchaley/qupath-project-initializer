@@ -1,3 +1,4 @@
+import Inputs.Companion.logger
 import com.google.cloud.storage.BlobId
 import com.google.cloud.storage.BlobInfo
 import com.google.cloud.storage.Storage
@@ -6,11 +7,20 @@ import com.google.cloud.storage.transfermanager.ParallelDownloadConfig
 import com.google.cloud.storage.transfermanager.TransferManagerConfig
 import com.google.cloud.storage.transfermanager.TransferStatus
 import org.apache.commons.io.FileUtils
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.IOException
 import java.net.URI
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.Path
 
+class Inputs {
+  companion object {
+    val logger: Logger = LoggerFactory.getLogger(Inputs::class.java)
+  }
+}
 
 data class InputImage(val imageName: String, val uri: URI, val localPath: String?)
 
@@ -121,5 +131,43 @@ fun fetchRemoteImages(inputImages: List<InputImage>): List<InputImage> {
 
     // Replace the input w/o local path to one with the newly downloaded path.
     inputImage.copy(localPath = localPath.canonicalPath)
+  }
+}
+
+fun makeProjectDirectory(projectPath: String): File {
+  // Not remote? Just return the directory.
+  if (!projectPath.startsWith("gs://")) {
+    return File(projectPath).apply { mkdirs() }
+  }
+
+  // Remote: Create a temporary location to store output files for upload.
+  val localRoot = Files.createTempDirectory("qupath_project").toFile()
+  Runtime.getRuntime().addShutdownHook(Thread { FileUtils.forceDelete(localRoot) })
+
+  logger.info("Creating project working directory: $localRoot")
+
+  return localRoot
+}
+
+fun uploadRemoteProject(localFile: File, remotePathRoot: String) {
+  // Not remote? Nothing to do.
+  if (!remotePathRoot.startsWith("gs://")) {
+    return
+  }
+
+  logger.info("Uploading project to $remotePathRoot")
+
+  try {
+    val proc = ProcessBuilder(*arrayOf("gcloud", "storage", "cp", "-r", localFile.path, remotePathRoot))
+      .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+      .redirectError(ProcessBuilder.Redirect.DISCARD)
+      .start()
+
+    proc.waitFor(60, TimeUnit.MINUTES)
+  } catch (e: IOException) {
+    // TODO: handle errors…
+    // Maybe we only add the deletion hook if there's no exception?
+    // and for an exception, just leave the temp directory.
+    e.printStackTrace()
   }
 }
