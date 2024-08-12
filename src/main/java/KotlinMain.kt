@@ -37,13 +37,9 @@ class InitializeProject : CliktCommand() {
     val downsample = 1.0
     val plane = ImagePlane.getDefaultPlane()
 
-    val directory = File(args.projectPath)
-    if (!directory.exists()) {
-      logger.info("No project directory, creating one!")
-      directory.mkdirs()
-    }
+    val projectDirectory = makeProjectDirectory(args.projectPath)
 
-    val project = Projects.createProject(directory, BufferedImage::class.java)
+    val project = Projects.createProject(projectDirectory, BufferedImage::class.java)
 
     logger.info("Discovering input files...")
     var inputImages = getImageInputs(args.imagesPath, imageFilter = imageFilter, extension = ".tiff")
@@ -116,6 +112,7 @@ class InitializeProject : CliktCommand() {
     }
 
     project.syncChanges()
+    uploadRemoteProject(projectDirectory, args.projectPath)
     logger.info("Done.")
   }
 }
