@@ -118,6 +118,10 @@ class InitializeProject : CliktCommand() {
     }
 
     project.syncChanges()
+
+    logger.info("Outputting reports to: ${args.reportsPath}")
+    outputReports(args.reportsPath, project)
+
     uploadRemoteProject(projectDirectory, args.projectPath)
     logger.info("Done.")
   }

@@ -2,6 +2,7 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'org.jetbrains.kotlin.jvm'
     id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'org.example'
@@ -24,6 +25,14 @@ java {
 
 application {
     mainClass.set('KotlinMainKt')
+}
+
+// I'm not sure how much we truly use javafx.
+// It gets exercised during measurement export.
+// If we can remove this … or use less … we should.
+javafx {
+    version = '21'
+    modules = ['javafx.controls', 'javafx.fxml']
 }
 
 dependencies {
