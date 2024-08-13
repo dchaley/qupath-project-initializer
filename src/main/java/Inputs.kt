@@ -134,17 +134,17 @@ fun fetchRemoteImages(inputImages: List<InputImage>): List<InputImage> {
   }
 }
 
-fun makeProjectDirectory(projectPath: String): File {
+fun prepWorkingDirectory(path: String): File {
   // Not remote? Just return the directory.
-  if (!projectPath.startsWith("gs://")) {
-    return File(projectPath).apply { mkdirs() }
+  if (!path.startsWith("gs://")) {
+    return File(path).apply { mkdirs() }
   }
 
   // Remote: Create a temporary location to store output files for upload.
-  val localRoot = Files.createTempDirectory("qupath_project").toFile()
+  val localRoot = Files.createTempDirectory("qupath_workdir").toFile()
   Runtime.getRuntime().addShutdownHook(Thread { FileUtils.forceDelete(localRoot) })
 
-  logger.info("Creating project working directory: $localRoot")
+  logger.info("Prepped temporary local working directory: $localRoot")
 
   return localRoot
 }

@@ -43,7 +43,7 @@ class InitializeProject : CliktCommand() {
     val downsample = 1.0
     val plane = ImagePlane.getDefaultPlane()
 
-    val projectDirectory = makeProjectDirectory(args.projectPath)
+    val projectDirectory = prepWorkingDirectory(args.projectPath)
 
     val project = Projects.createProject(projectDirectory, BufferedImage::class.java)
 
@@ -120,7 +120,8 @@ class InitializeProject : CliktCommand() {
     project.syncChanges()
 
     logger.info("Outputting reports to: ${args.reportsPath}")
-    outputReports(args.reportsPath, project)
+    val reportsWorkdir = prepWorkingDirectory(args.reportsPath)
+    outputReports(reportsWorkdir, project)
 
     uploadRemoteProject(projectDirectory, args.projectPath)
     logger.info("Done.")

@@ -4,9 +4,9 @@ import org.slf4j.LoggerFactory
 import qupath.lib.gui.tools.MeasurementExporter
 import qupath.lib.objects.PathDetectionObject
 import qupath.lib.projects.Project
-import qupath.lib.scripting.QP.buildFilePath
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Paths
 
 class Reports {
   companion object {
@@ -14,16 +14,14 @@ class Reports {
   }
 }
 
-fun outputReports(outputRoot: String, project: Project<BufferedImage>) {
-  File(outputRoot).mkdirs()
-
+fun outputReports(outputRoot: File, project: Project<BufferedImage>) {
   project.imageList.forEach {
     val imgName = it.imageName.substringBefore(".")
     val separator = "\t"
     val exportType = PathDetectionObject::class.java
-    val outputFile = File(buildFilePath(outputRoot, imgName + "_QUANT.tsv"))
+    val outputFile = Paths.get(outputRoot.canonicalPath, "${imgName}_QUANT.tsv").toFile()
 
-    logger.info("Exporting measurements for $imgName to: ${outputFile.absolutePath}")
+    logger.info("Exporting measurements for $imgName to: ${outputFile.canonicalPath}")
 
     MeasurementExporter()
       .imageList(listOf(it)) // Images from which measurements will be exported
