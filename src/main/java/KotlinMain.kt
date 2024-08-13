@@ -1,7 +1,9 @@
+import Main.Companion.logger
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.groupChoice
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.options.option
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import qupath.lib.analysis.features.ObjectMeasurements
 import qupath.lib.projects.Projects
@@ -13,8 +15,14 @@ import java.awt.image.BufferedImage
 import java.io.File
 import kotlin.math.roundToInt
 
+class Main {
+  companion object {
+    val logger: Logger = LoggerFactory.getLogger(Main::class.java)
+  }
+}
+
 fun main(args: Array<String>) {
-  LoggerFactory.getLogger(InitializeProject::class.java).info("Initializing QuPath project")
+  logger.info("Initializing QuPath project")
 
   // This makes sure the scripting.QP import doesn't get "optimized" away
   // We need the import so that various static initializers are run.
@@ -30,8 +38,6 @@ class InitializeProject : CliktCommand() {
   ).required()
 
   private val imageFilter: String? by option("--image-filter", help = "Filter for image names (file base name)")
-
-  private val logger = LoggerFactory.getLogger(InitializeProject::class.java)
 
   override fun run() {
     val downsample = 1.0
