@@ -62,6 +62,12 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
+tasks {
+    shadowJar {
+        isZip64 = true
+    }
+}
+
 test {
     useJUnitPlatform()
 }
