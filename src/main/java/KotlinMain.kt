@@ -122,8 +122,9 @@ class InitializeProject : CliktCommand() {
     logger.info("Outputting reports to: ${args.reportsPath}")
     val reportsWorkdir = prepWorkingDirectory(args.reportsPath)
     outputReports(reportsWorkdir, project)
+    uploadToRemote(reportsWorkdir, args.reportsPath)
 
-    uploadRemoteProject(projectDirectory, args.projectPath)
+    uploadToRemote(projectDirectory, args.projectPath)
     logger.info("Done.")
   }
 }

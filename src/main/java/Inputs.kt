@@ -149,7 +149,7 @@ fun prepWorkingDirectory(path: String): File {
   return localRoot
 }
 
-fun uploadRemoteProject(localFile: File, remotePathRoot: String) {
+fun uploadToRemote(localFile: File, remotePathRoot: String) {
   // Not remote? Nothing to do.
   if (!remotePathRoot.startsWith("gs://")) {
     return
