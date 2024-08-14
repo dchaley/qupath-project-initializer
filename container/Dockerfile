@@ -15,6 +15,13 @@ RUN gradle shadowJar --no-daemon -Dorg.gradle.welcome=never
 # But for now– we're doing this.
 FROM eclipse-temurin:21-jre-jammy
 
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && \
+    apt-get update -y && \
+    apt-get install -y git google-cloud-sdk google-cloud-cli pigz openjfx && \
+    rm -rf /var/lib/apt/lists/* && \
+    gcloud config set storage/parallel_composite_upload_enabled True
+
 RUN mkdir /app
 
 COPY --from=build /home/gradle/src/build/libs/*-all.jar /app/
