@@ -158,9 +158,9 @@ fun uploadToRemote(localFile: File, remotePathRoot: String) {
   logger.info("Uploading $localFile to $remotePathRoot")
 
   try {
-    val proc = ProcessBuilder(*arrayOf("gcloud", "storage", "cp", "-r", localFile.path, remotePathRoot))
-      //.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-      //.redirectError(ProcessBuilder.Redirect.DISCARD)
+    val proc = ProcessBuilder(*arrayOf("gcloud", "storage", "cp", "-r", "${localFile.canonicalPath}/*", remotePathRoot))
+      .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+      .redirectError(ProcessBuilder.Redirect.DISCARD)
       .start()
 
     proc.waitFor(60, TimeUnit.MINUTES)
