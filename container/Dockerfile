@@ -22,7 +22,7 @@ RUN \
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && \
     apt-get update -y -o Dir::Etc::sourcelist="sources.list.d/google-cloud-sdk.list" \
                       -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" && \
-    apt-get install -y --no-install-recommends git google-cloud-sdk google-cloud-cli pigz openjfx && \
+    apt-get install -y --no-install-recommends git google-cloud-sdk google-cloud-cli pigz openjfx python3 && \
     rm -rf /var/lib/apt/lists/* && \
     gcloud config set storage/parallel_composite_upload_enabled True
 
