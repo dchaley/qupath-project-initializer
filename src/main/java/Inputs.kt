@@ -149,11 +149,14 @@ fun prepWorkingDirectory(path: String): File {
   return localRoot
 }
 
-fun uploadToRemote(localFile: File, remotePathRoot: String) {
+fun uploadToRemote(localFile: File, remotePath: String) {
   // Not remote? Nothing to do.
-  if (!remotePathRoot.startsWith("gs://")) {
+  if (!remotePath.startsWith("gs://")) {
     return
   }
+
+  // Need to make sure the root is treated as a root, in case there's only 1 file to upload.
+  val remotePathRoot = remotePath + if (remotePath.endsWith('/')) "" else "/"
 
   logger.info("Uploading ${localFile.canonicalPath}/* to $remotePathRoot")
 
