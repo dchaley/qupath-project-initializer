@@ -100,13 +100,21 @@ class InitializeProject : CliktCommand() {
           else -> numDetectionObjects / 100
         }
 
+        val prefetchedImageServer = PrefetchedImageServer(server)
+
         for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
           if (processed % updateAfterCount == 0) {
             logger.info("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
           }
-          ObjectMeasurements.addIntensityMeasurements(server, detection, downsample, measurements, listOf())
+          ObjectMeasurements.addIntensityMeasurements(
+            prefetchedImageServer,
+            detection,
+            downsample,
+            measurements,
+            listOf()
+          )
           ObjectMeasurements.addShapeMeasurements(
-            detection, server.pixelCalibration,
+            detection, prefetchedImageServer.pixelCalibration,
             *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
           )
         }
