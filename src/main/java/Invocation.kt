@@ -19,7 +19,7 @@ class WorkspaceLocation : Invocation("workspace") {
   ).default("OMETIFF")
   private val segMasksSubdir: String by option(
     "--segmasks-subdir", help = "Name of the folder containing segmentation masks",
-  ).default("SEGMASKS")
+  ).default("SEGMASK")
   private val projectSubdir: String by option(
     "--project-subdir", help = "Name of the folder to save QuPath project",
   ).default("QUPATH")
