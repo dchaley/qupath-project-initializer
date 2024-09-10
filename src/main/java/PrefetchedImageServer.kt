@@ -3,7 +3,10 @@ import qupath.lib.images.servers.ImageServer
 import qupath.lib.regions.RegionRequest
 import java.awt.image.BufferedImage
 
-class PrefetchedImageServer(val wrappedImageServer: ImageServer<BufferedImage>) : ImageServer<BufferedImage> by wrappedImageServer {
+class PrefetchedImageServer(
+  private val wrappedImageServer: ImageServer<BufferedImage>
+) : ImageServer<BufferedImage> by wrappedImageServer {
+
   private val logger = LoggerFactory.getLogger(PrefetchedImageServer::class.java)
 
   private var prefetchedImage: BufferedImage? = null
