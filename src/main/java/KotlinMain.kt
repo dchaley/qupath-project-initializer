@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import qupath.lib.analysis.features.ObjectMeasurements
+import qupath.lib.projects.ProjectImageEntry
 import qupath.lib.projects.Projects
 import qupath.lib.regions.ImagePlane
 import qupath.lib.scripting.QP
@@ -29,6 +30,71 @@ fun main(args: Array<String>) {
   QP()
 
   InitializeProject().main(args)
+}
+
+fun addImageObjects(
+  entry: ProjectImageEntry<BufferedImage>,
+  wholeCellFiles: List<File>,
+  downsample: Double,
+  plane: ImagePlane,
+) {
+  logger.info("Adding image objects")
+  val imgName = entry.imageName
+
+  val sample = imgName.substringAfterLast(":").substringBefore(".")
+  logger.info(" >>> $sample")
+  val imageData = entry.readImageData()
+  val server = imageData.server
+
+  val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
+  if (wholeCellMask1 == null) {
+    logger.warn(" >>> MISSING MASK FILES!! For: $sample <<<")
+    return
+  }
+
+  val pathObjects = extractPathObjects(wholeCellMask1.canonicalPath, downsample, plane)
+
+  logger.info("  Number of Pathobjects: ${pathObjects.size}")
+  imageData.hierarchy.addObjects(pathObjects)
+  resolveHierarchy()
+  entry.saveImageData(imageData)
+
+  logger.info(" >>> Calculating measurements...")
+  logger.info(imageData.hierarchy.toString())
+  val numDetectionObjects = imageData.hierarchy.detectionObjects.size
+  logger.info("  DetectionObjects: $numDetectionObjects")
+  val measurements = ObjectMeasurements.Measurements.entries
+  logger.info("Computing intensity measurements: ${measurements}")
+
+  val updateAfterCount = when {
+    numDetectionObjects == 1 -> 1
+    numDetectionObjects < 500 -> numDetectionObjects / 5
+    numDetectionObjects < 50000 -> numDetectionObjects / 50
+    else -> numDetectionObjects / 100
+  }
+
+  val prefetchedImageServer = PrefetchedImageServer(server)
+
+  for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
+    if (processed % updateAfterCount == 0) {
+      logger.info("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
+    }
+    ObjectMeasurements.addIntensityMeasurements(
+      prefetchedImageServer,
+      detection,
+      downsample,
+      measurements,
+      listOf()
+    )
+    ObjectMeasurements.addShapeMeasurements(
+      detection, prefetchedImageServer.pixelCalibration,
+      *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
+    )
+  }
+  logger.info("100% complete: ${imgName}")
+  fireHierarchyUpdate()
+  entry.saveImageData(imageData)
+  imageData.server.close()
 }
 
 class InitializeProject : CliktCommand() {
@@ -64,62 +130,7 @@ class InitializeProject : CliktCommand() {
 
     if (wholeCellFiles.isNotEmpty()) {
       project.imageList.forEach() { entry ->
-        val imgName = entry.imageName
-
-        val sample = imgName.substringAfterLast(":").substringBefore(".")
-        logger.info(" >>> $sample")
-        val imageData = entry.readImageData()
-        val server = imageData.server
-
-        val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
-        if (wholeCellMask1 == null) {
-          logger.warn(" >>> MISSING MASK FILES!! For: $sample <<<")
-          return@forEach
-        }
-
-        val pathObjects = extractPathObjects(wholeCellMask1.canonicalPath, downsample, plane)
-
-        logger.info("  Number of Pathobjects: ${pathObjects.size}")
-        imageData.hierarchy.addObjects(pathObjects)
-        resolveHierarchy()
-        entry.saveImageData(imageData)
-
-        logger.info(" >>> Calculating measurements...")
-        logger.info(imageData.hierarchy.toString())
-        val numDetectionObjects = imageData.hierarchy.detectionObjects.size
-        logger.info("  DetectionObjects: $numDetectionObjects")
-        val measurements = ObjectMeasurements.Measurements.entries
-        logger.info("Computing intensity measurements: ${measurements}")
-
-        val updateAfterCount = when {
-          numDetectionObjects == 1 -> 1
-          numDetectionObjects < 500 -> numDetectionObjects / 5
-          numDetectionObjects < 50000 -> numDetectionObjects / 50
-          else -> numDetectionObjects / 100
-        }
-
-        val prefetchedImageServer = PrefetchedImageServer(server)
-
-        for ((processed, detection) in imageData.hierarchy.detectionObjects.withIndex()) {
-          if (processed % updateAfterCount == 0) {
-            logger.info("${(100 * processed.toFloat() / numDetectionObjects).roundToInt()}% complete")
-          }
-          ObjectMeasurements.addIntensityMeasurements(
-            prefetchedImageServer,
-            detection,
-            downsample,
-            measurements,
-            listOf()
-          )
-          ObjectMeasurements.addShapeMeasurements(
-            detection, prefetchedImageServer.pixelCalibration,
-            *ObjectMeasurements.ShapeFeatures.entries.toTypedArray()
-          )
-        }
-        logger.info("100% complete: ${imgName}")
-        fireHierarchyUpdate()
-        entry.saveImageData(imageData)
-        imageData.server.close()
+        addImageObjects(entry, wholeCellFiles, downsample, plane)
       }
     }
 
