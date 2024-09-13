@@ -49,12 +49,10 @@ class InitializeProject : CliktCommand() {
 
     logger.info("Discovering input files...")
     var inputImages = getImageInputs(args.imagesPath, imageFilter = imageFilter, extension = ".tiff")
-
     logger.info("Fetching remote image files...")
     inputImages = fetchRemoteImages(inputImages)
 
-    logger.info("Detected ${inputImages.size} input images: $inputImages")
-
+    logger.info("Adding ${inputImages.size} input images: $inputImages")
     project.addImages(inputImages)
 
     logger.info("Discovering mask files...")
