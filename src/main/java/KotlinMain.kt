@@ -34,6 +34,7 @@ fun main(args: Array<String>) {
 
 fun addImageObjects(
   entry: ProjectImageEntry<BufferedImage>,
+  nucleusMaskFiles: List<File>,
   wholeCellFiles: List<File>,
   downsample: Double,
   plane: ImagePlane,
@@ -46,15 +47,25 @@ fun addImageObjects(
   val imageData = entry.readImageData()
   val server = imageData.server
 
-  val wholeCellMask1 = wholeCellFiles.find { it.name.contains("${sample}_") }
-  if (wholeCellMask1 == null) {
-    logger.warn(" >>> MISSING MASK FILES!! For: $sample <<<")
+  val nucleusMaskFile = nucleusMaskFiles.find { it.name.contains("${sample}_") }
+  val wholeCellMaskFile = wholeCellFiles.find { it.name.contains("${sample}_") }
+
+  if (wholeCellMaskFile == null) {
+    logger.warn(" >>> MISSING WHOLE CELL MASK FILE!! For: $sample.")
     return
   }
 
-  val pathObjects = extractPathObjects(wholeCellMask1.canonicalPath, downsample, plane)
+  val pathObjects = if (nucleusMaskFile == null) {
+    extractWholeCellObjects(
+      wholeCellMaskFile.canonicalPath, downsample, plane,
+    )
+  } else {
+    extractCellObjects(
+      nucleusMaskFile.canonicalPath, wholeCellMaskFile.canonicalPath, downsample, plane,
+    )
+  }
 
-  logger.info("  Number of Pathobjects: ${pathObjects.size}")
+  logger.info("  Number of PathObjects: ${pathObjects.size}")
   imageData.hierarchy.addObjects(pathObjects)
   resolveHierarchy()
   entry.saveImageData(imageData)
@@ -65,6 +76,7 @@ fun addImageObjects(
   logger.info("  DetectionObjects: $numDetectionObjects")
   val measurements = ObjectMeasurements.Measurements.entries
   logger.info("Computing intensity measurements: ${measurements}")
+  val compartments = ObjectMeasurements.Compartments.entries
 
   val updateAfterCount = when {
     numDetectionObjects == 1 -> 1
@@ -84,7 +96,7 @@ fun addImageObjects(
       detection,
       downsample,
       measurements,
-      listOf()
+      compartments,
     )
     ObjectMeasurements.addShapeMeasurements(
       detection, prefetchedImageServer.pixelCalibration,
@@ -122,15 +134,21 @@ class InitializeProject : CliktCommand() {
     project.addImages(inputImages)
 
     logger.info("Discovering mask files...")
+    var nucleusMaskInputs = getImageInputs(args.segMasksPath, extension = "_NucleusMask.tiff")
     var wholeCellInputs = getImageInputs(args.segMasksPath, extension = "_WholeCellMask.tiff")
     logger.info("Fetching remote mask files...")
+    nucleusMaskInputs = fetchRemoteImages(nucleusMaskInputs)
     wholeCellInputs = fetchRemoteImages(wholeCellInputs)
 
+    val nucleusMaskFiles = nucleusMaskInputs.mapNotNull { it.localPath }.map { File(it) }
     val wholeCellFiles = wholeCellInputs.mapNotNull { it.localPath }.map { File(it) }
 
     if (wholeCellFiles.isNotEmpty()) {
       project.imageList.forEach() { entry ->
-        addImageObjects(entry, wholeCellFiles, downsample, plane)
+        // Pass in an empty list of nucleus files to use only whole cell masks.
+        // This is because nucleus matching doesn't work yet when the number
+        // of whole-cells is different from the number of nuclei in the masks.
+        addImageObjects(entry, listOf(), wholeCellFiles, downsample, plane)
       }
     }
 
