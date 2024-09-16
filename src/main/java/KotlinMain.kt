@@ -135,6 +135,10 @@ class InitializeProject : CliktCommand() {
 
     logger.info("Discovering mask files...")
     var nucleusMaskInputs = getImageInputs(args.segMasksPath, extension = "_NucleusMask.tiff")
+    // Pass in an empty list of nucleus files to use only whole cell masks.
+    // This is because nucleus matching doesn't work yet when the number
+    // of whole-cells is different from the number of nuclei in the masks.
+    nucleusMaskInputs = listOf()
     var wholeCellInputs = getImageInputs(args.segMasksPath, extension = "_WholeCellMask.tiff")
     logger.info("Fetching remote mask files...")
     nucleusMaskInputs = fetchRemoteImages(nucleusMaskInputs)
@@ -145,10 +149,7 @@ class InitializeProject : CliktCommand() {
 
     if (wholeCellFiles.isNotEmpty()) {
       project.imageList.forEach() { entry ->
-        // Pass in an empty list of nucleus files to use only whole cell masks.
-        // This is because nucleus matching doesn't work yet when the number
-        // of whole-cells is different from the number of nuclei in the masks.
-        addImageObjects(entry, listOf(), wholeCellFiles, downsample, plane)
+        addImageObjects(entry, nucleusMaskFiles, wholeCellFiles, downsample, plane)
       }
     }
 
