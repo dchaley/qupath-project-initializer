@@ -12,6 +12,7 @@ import qupath.lib.objects.PathObject
 import qupath.lib.objects.PathObjects
 import qupath.lib.projects.Project
 import qupath.lib.regions.ImagePlane
+import qupath.lib.roi.interfaces.ROI
 import java.awt.image.BufferedImage
 import java.io.File
 
@@ -136,13 +137,68 @@ fun extractCellObjects(
     }
   }
 
-  return nucleusRois.mapIndexedNotNull { index, nucleusRoi ->
-    val cellRoi = wholecellRois.getOrNull(index)
+  val pathObjects = mutableListOf<PathObject>()
+  val remainingWholeCellRois = wholecellRois.toMutableSet()
+
+  val remainingNuclei = nucleusRois.filter { nucleusRoi ->
+    val nucleusGeometry = nucleusRoi.geometry
+
+    val cellRoi = remainingWholeCellRois.find { it.geometry.covers(nucleusGeometry) }
+
     if (cellRoi == null) {
-      logger.warn("No whole-cell ROI found for nucleus ROI $index")
-      return@mapIndexedNotNull null
+      // True --> keep the nucleus ROI as unmatched
+      return@filter true
     } else {
-      PathObjects.createCellObject(cellRoi, nucleusRoi, null, null)
+      // Mark the cell as matched
+      remainingWholeCellRois.remove(cellRoi)
+      pathObjects.add(PathObjects.createCellObject(cellRoi, nucleusRoi, null, null))
+      // False --> Do not keep the nucleus, it was matched
+      return@filter false
     }
+  }.toMutableSet()
+
+  // For optimization: consider an N*M matrix of overlap scores,
+  // where N is number of nuclei and M is number of cells, something similar to:
+  // https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
+  val candidateMatches: MutableList<Pair<Pair<ROI, ROI>, Double>> = mutableListOf()
+
+  remainingNuclei.forEach { nucleusRoi ->
+    val nucleusGeometry = nucleusRoi.geometry
+
+    // TODO: consider using a quadtree for this, to avoid
+    // a full search over obviously irrelevant cells.
+    val candidates = remainingWholeCellRois.mapNotNull { wholeCellRoi ->
+      if (!wholeCellRoi.geometry.overlaps(nucleusGeometry)) {
+        return@mapNotNull null
+      }
+
+      val wholeCellGeometry = wholeCellRoi.geometry
+      val overlap = wholeCellGeometry.intersection(nucleusGeometry).area / nucleusGeometry.area
+      Pair(Pair(nucleusRoi, wholeCellRoi), overlap)
+    }
+
+    candidateMatches.addAll(candidates)
   }
+
+  candidateMatches.sortByDescending { it.second }
+
+  var matchedByOverlap = 0
+
+  candidateMatches.forEach { (pair, _) ->
+    val (nucleusRoi, wholeCellRoi) = pair
+    if (!(nucleusRoi in remainingNuclei && wholeCellRoi in remainingWholeCellRois)) {
+      return@forEach
+    }
+
+    remainingNuclei.remove(nucleusRoi)
+    remainingWholeCellRois.remove(wholeCellRoi)
+    pathObjects.add(PathObjects.createCellObject(wholeCellRoi, nucleusRoi, null, null))
+    matchedByOverlap++
+  }
+
+  logger.info("Matched $matchedByOverlap nuclei using overlap")
+  logger.info("Discarding $remainingNuclei unmatched nuclei ROIs")
+  logger.info("Discarding $remainingWholeCellRois unmatched whole-cell ROIs")
+
+  return pathObjects
 }
