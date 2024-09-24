@@ -1,6 +1,7 @@
 import Images.Companion.logger
 import ij.IJ
 import ij.process.ColorProcessor
+import org.locationtech.jts.index.quadtree.Quadtree
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import qupath.imagej.processing.RoiLabeling
@@ -88,8 +89,6 @@ fun extractWholeCellObjects(
   return rois.map { PathObjects.createDetectionObject(it) }
 }
 
-// NOTE: this does not work if the nucleus & whole-cell masks
-// have different numbers of objects.
 fun extractCellObjects(
   nucleusMaskPath: String,
   wholecellMaskPath: String,
@@ -140,10 +139,22 @@ fun extractCellObjects(
   val pathObjects = mutableListOf<PathObject>()
   val remainingWholeCellRois = wholecellRois.toMutableSet()
 
+  logger.info("Building quadtree")
+  val quadTree = Quadtree()
+  wholecellRois.forEachIndexed { index, wholeCell ->
+    quadTree.insert(wholeCell.geometry.envelopeInternal, index)
+  }
+
+  logger.info("Finding full-coverage matches")
+
   val remainingNuclei = nucleusRois.filter { nucleusRoi ->
     val nucleusGeometry = nucleusRoi.geometry
 
-    val cellRoi = remainingWholeCellRois.find { it.geometry.covers(nucleusGeometry) }
+    val cellRoi = quadTree.query(nucleusGeometry.envelopeInternal)
+      .map { wholecellRois[it as Int] }
+      .find { wholeCellRoi ->
+        wholeCellRoi.geometry.covers(nucleusGeometry)
+      }
 
     if (cellRoi == null) {
       // True --> keep the nucleus ROI as unmatched
@@ -157,28 +168,30 @@ fun extractCellObjects(
     }
   }.toMutableSet()
 
-  // For optimization: consider an N*M matrix of overlap scores,
-  // where N is number of nuclei and M is number of cells, something similar to:
-  // https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
+  logger.info("Finding best-candidate matches")
+
   val candidateMatches: MutableList<Pair<Pair<ROI, ROI>, Double>> = mutableListOf()
 
   remainingNuclei.forEach { nucleusRoi ->
     val nucleusGeometry = nucleusRoi.geometry
 
-    // TODO: consider using a quadtree for this, to avoid
-    // a full search over obviously irrelevant cells.
-    val candidates = remainingWholeCellRois.mapNotNull { wholeCellRoi ->
-      if (!wholeCellRoi.geometry.overlaps(nucleusGeometry)) {
-        return@mapNotNull null
-      }
+    val candidates = quadTree.query(nucleusGeometry.envelopeInternal)
+      .map { wholecellRois[it as Int] }
+      .filter { remainingWholeCellRois.contains(it) }
+      .mapNotNull { wholeCellRoi ->
+        if (!wholeCellRoi.geometry.overlaps(nucleusGeometry)) {
+          return@mapNotNull null
+        }
 
-      val wholeCellGeometry = wholeCellRoi.geometry
-      val overlap = wholeCellGeometry.intersection(nucleusGeometry).area / nucleusGeometry.area
-      Pair(Pair(nucleusRoi, wholeCellRoi), overlap)
-    }
+        val wholeCellGeometry = wholeCellRoi.geometry
+        val overlap = wholeCellGeometry.intersection(nucleusGeometry).area / nucleusGeometry.area
+        Pair(Pair(nucleusRoi, wholeCellRoi), overlap)
+      }
 
     candidateMatches.addAll(candidates)
   }
+
+  logger.info("Sorting candidate matches by overlap")
 
   candidateMatches.sortByDescending { it.second }
 
@@ -197,8 +210,8 @@ fun extractCellObjects(
   }
 
   logger.info("Matched $matchedByOverlap nuclei using overlap")
-  logger.info("Discarding $remainingNuclei unmatched nuclei ROIs")
-  logger.info("Discarding $remainingWholeCellRois unmatched whole-cell ROIs")
+  logger.info("Discarding ${remainingNuclei.size} unmatched nuclei ROIs")
+  logger.info("Discarding ${remainingWholeCellRois.size} unmatched whole-cell ROIs")
 
   return pathObjects
 }
