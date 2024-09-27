@@ -168,6 +168,8 @@ fun extractCellObjects(
     }
   }.toMutableSet()
 
+  logger.info("Found ${pathObjects.size} full-coverage matches")
+
   logger.info("Finding best-candidate matches")
 
   val candidateMatches: MutableList<Pair<Pair<ROI, ROI>, Double>> = mutableListOf()
@@ -209,9 +211,13 @@ fun extractCellObjects(
     matchedByOverlap++
   }
 
-  logger.info("Matched $matchedByOverlap nuclei using overlap")
+  logger.info("Matched $matchedByOverlap nuclei using best-overlap")
   logger.info("Discarding ${remainingNuclei.size} unmatched nuclei ROIs")
-  logger.info("Discarding ${remainingWholeCellRois.size} unmatched whole-cell ROIs")
+
+  logger.info("Keeping ${remainingWholeCellRois.size} unmatched whole-cell ROIs")
+  remainingWholeCellRois.forEach {
+    pathObjects.add(PathObjects.createCellObject(it, null, null, null))
+  }
 
   return pathObjects
 }
