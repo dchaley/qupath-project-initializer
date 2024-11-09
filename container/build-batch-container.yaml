@@ -1,22 +1,26 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
-    args: [ '-c', 'echo "$$PASSWORD" | docker login --username=$$USERNAME --password-stdin' ]
-    secretEnv: [ 'USERNAME', 'PASSWORD' ]
+    args: [ '-c', 'docker pull ${_GCP_CONTAINER} || exit 0' ]
+
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
-      '-t', 'us-central1-docker.pkg.dev/deepcell-on-batch/deepcell-benchmarking-us-central1/qupath-project-initializer:latest',
-      '-t', 'dchaley/qupath-project-initializer:latest',
+      '--build-arg', 'GITHUB_REPOSITORY=${_GITHUB_REPOSITORY}',
+      '--build-arg', 'GCP_LOCATION=${LOCATION}',
+      '--build-arg', 'GCP_PROJECT_ID=${PROJECT_ID}',
+      '--build-arg', 'GCP_REPOSITORY=${_GCP_REPOSITORY}',
+      '--cache-from', '${_GCP_CONTAINER}',
+      '-t', '${_GCP_CONTAINER}',
       '.',
     ]
   - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'push', 'us-central1-docker.pkg.dev/deepcell-on-batch/deepcell-benchmarking-us-central1/qupath-project-initializer:latest' ]
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [ 'push', 'dchaley/qupath-project-initializer:latest' ]
-availableSecrets:
-  secretManager:
-    - versionName: projects/deepcell-on-batch/secrets/dockerhub-password/versions/1
-      env: 'PASSWORD'
-    - versionName: projects/deepcell-on-batch/secrets/dockerhub-username/versions/2
-      env: 'USERNAME'
+    args: [ 'push', '${_GCP_CONTAINER}' ]
+substitutions:
+  # Assumes these substitutions are available:
+  # - $_GCP_REPOSITORY
+  _TAGGED_IMAGE: ${_IMAGE_NAME:-qupath-measurement}:${_IMAGE_TAG:-latest}
+  _GCP_CONTAINER_BASE: ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_GCP_REPOSITORY}
+  _GCP_CONTAINER: ${_GCP_CONTAINER_BASE}/${_TAGGED_IMAGE}
+options:
+  dynamicSubstitutions: true
