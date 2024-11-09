@@ -1,10 +1,13 @@
 FROM gradle:8.5-jdk21-jammy AS build
 
+# The github repository to build.
+ARG GITHUB_REPOSITORY
+
 # Add the repo sha to the container as the version.
-ADD https://api.github.com/repos/dchaley/qupath-project-initializer/git/refs/heads/main version.json
+ADD https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/main version.json
 
 # Clone the repo
-RUN git clone https://github.com/dchaley/qupath-project-initializer.git /home/gradle/src
+RUN git clone https://github.com/${GITHUB_REPOSITORY}.git /home/gradle/src
 
 WORKDIR "/home/gradle/src"
 
