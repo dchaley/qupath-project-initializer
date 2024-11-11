@@ -12,6 +12,7 @@ env:
 
 jobs:
   build-push-artifact:
+    if: ${{ vars.GCP_ARTIFACT_REPOSITORY != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout"
