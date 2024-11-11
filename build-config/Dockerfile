@@ -1,15 +1,12 @@
 FROM gradle:8.5-jdk21-jammy AS build
 
-# The github repository to build.
-ARG GITHUB_REPOSITORY
-
-# Add the repo sha to the container as the version.
-ADD https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/main version.json
-
-# Clone the repo
-RUN git clone https://github.com/${GITHUB_REPOSITORY}.git /home/gradle/src
-
-WORKDIR "/home/gradle/src"
+WORKDIR "/home/gradle/build"
+COPY build.gradle .
+COPY gradlew .
+COPY gradlew.bat .
+COPY settings.gradle .
+COPY gradle/ .
+COPY src/ .
 
 # Build the shadow-jar which contains ALL dependencies
 RUN gradle shadowJar --no-daemon -Dorg.gradle.welcome=never
@@ -31,6 +28,6 @@ RUN \
 
 RUN mkdir /app
 
-COPY --from=build /home/gradle/src/build/libs/*-all.jar /app/
+COPY --from=build /home/gradle/build/build/libs/*-all.jar /app/
 
-ENTRYPOINT ["java","-jar","/app/qupath-project-initializer-1.0-SNAPSHOT-all.jar"]
+ENTRYPOINT ["java","-jar","/app/qupath-measurement-1.0-SNAPSHOT-all.jar"]
