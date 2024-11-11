@@ -3,5 +3,5 @@ pluginManagement {
         id 'org.jetbrains.kotlin.jvm' version '2.0.0'
     }
 }
-rootProject.name = 'qupath-project-initializer'
+rootProject.name = 'qupath-measurement'
 

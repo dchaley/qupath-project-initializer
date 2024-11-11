@@ -30,4 +30,4 @@ RUN mkdir /app
 
 COPY --from=build /home/gradle/build/build/libs/*-all.jar /app/
 
-ENTRYPOINT ["java","-jar","/app/qupath-project-initializer-1.0-SNAPSHOT-all.jar"]
+ENTRYPOINT ["java","-jar","/app/qupath-measurement-1.0-SNAPSHOT-all.jar"]
