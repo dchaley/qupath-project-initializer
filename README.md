@@ -4,6 +4,12 @@ Tools to initialize a [QuPath project](https://qupath.github.io/) from input fil
 
 ## Development
 
+### Cloud Build
+
+Launch cloud build jobs with `container/launch-build.sh`.
+
+Make sure your environment is set up. Copy `.envrc.template` to `.envrc` and set variables.
+
 ### Github
 
 Set these repository variables:
