@@ -1,12 +1,12 @@
 FROM gradle:8.5-jdk21-jammy AS build
 
 WORKDIR "/home/gradle/build"
-COPY build.gradle .
-COPY gradlew .
-COPY gradlew.bat .
-COPY settings.gradle .
-COPY gradle/ .
-COPY src/ .
+COPY build.gradle ./build.gradle
+COPY gradlew ./gradlew
+COPY gradlew.bat ./gradlew.bat
+COPY settings.gradle ./settings.gradle
+COPY gradle ./gradle
+COPY src ./src
 
 # Build the shadow-jar which contains ALL dependencies
 RUN gradle shadowJar --no-daemon -Dorg.gradle.welcome=never
